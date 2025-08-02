@@ -1,0 +1,24 @@
+# URL yeniden yazma
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # index.php'yi gizle
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php?/$1 [L]
+</IfModule>
+
+# Hata sayfaları
+ErrorDocument 404 /404.php
+ErrorDocument 500 /500.php
+
+# Dosya erişim kısıtlamaları
+<FilesMatch "\.(env|htaccess|sql)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "^(config|db_connect|auth|functions)\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
