@@ -36,11 +36,15 @@ if (empty($content)) {
 <head>
     <?php
 function cache_bust($url) {
-    if (file_exists($_SERVER['DOCUMENT_ROOT'] . parse_url($url, PHP_URL_PATH))) {
-        return $url . '?v=' . filemtime($_SERVER['DOCUMENT_ROOT'] . parse_url($url, PHP_URL_PATH));
+    // URL boşsa veya external URL'se return
+    if (empty($url) || strpos($url, 'http') === 0) {
+        return $url;
     }
-    return $url;
+    
+    // Local dosya için basit cache bust
+    return $url . '?v=' . time();
 }
+
 ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

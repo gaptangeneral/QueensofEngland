@@ -1,5 +1,4 @@
 <?php
-session_start();
 
 // 2. Dosyaları include et (sıralama önemli!)
 require_once __DIR__ . '/../includes/config.php';

@@ -1,19 +1,13 @@
 <?php
+// admin/index.php - Tüm bölümlerle düzeltilmiş versiyon
 
-
-// 2. Config dosyası
+// İnclude dosyaları
 require_once __DIR__ . '/../includes/config.php';
-
-// 3. Veritabanı bağlantısı
 require_once __DIR__ . '/../includes/db_connect.php';
-
-// 4. Fonksiyonlar (is_admin_logged_in artık burada)
 require_once __DIR__ . '/../includes/functions.php';
-
-// 5. Kimlik doğrulama
 require_once __DIR__ . '/../includes/auth.php';
 
-// 6. Giriş kontrolü
+// Giriş kontrolü
 require_admin_login();
 
 // Değişkenleri başlangıçta tanımla
@@ -24,20 +18,59 @@ $current_section = isset($_GET['section']) ? $_GET['section'] : 'general';
 // İşlemleri yönet
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['update_content'])) {
-        // İçerik güncelleme
-        foreach ($_POST as $key => $value) {
-            if (strpos($key, 'content_') === 0) {
-                $content_key = substr($key, 8);
-                if (update_content($pdo, $content_key, $value)) {
-                    $success = 'İçerik başarıyla güncellendi!';
-                } else {
-                    $error = 'İçerik güncelleme hatası!';
+        // İçerik güncelleme - RESİM YÜKLEMESİ EKLENDİ
+        $has_error = false;
+        
+        // Önce resim dosyalarını işle
+        if (isset($_FILES) && !empty($_FILES)) {
+            foreach ($_FILES as $field_name => $file) {
+                if ($file['error'] === UPLOAD_ERR_OK) {
+                    $image_url = handle_file_upload($_FILES, $field_name);
+                    if ($image_url) {
+                        // Resim başarıyla yüklendi, content key'ini belirle
+                        $content_key = '';
+                        switch($field_name) {
+                            case 'about_image':
+                                $content_key = 'about_image';
+                                break;
+                            case 'featured_image':
+                                $content_key = 'featured_image';
+                                break;
+                            case 'hero_image':
+                                $content_key = 'hero_image';
+                                break;
+                            default:
+                                $content_key = $field_name;
+                        }
+                        
+                        if ($content_key && !update_content($pdo, $content_key, $image_url)) {
+                            $error = 'Resim güncelleme hatası: ' . $field_name;
+                            $has_error = true;
+                            break;
+                        }
+                    }
                 }
             }
         }
+        
+        // Metin içeriklerini güncelle
+        if (!$has_error) {
+            foreach ($_POST as $key => $value) {
+                if (strpos($key, 'content_') === 0) {
+                    $content_key = substr($key, 8);
+                    if (!update_content($pdo, $content_key, $value)) {
+                        $error = 'İçerik güncelleme hatası: ' . $content_key;
+                        $has_error = true;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!$has_error) {
+            $success = 'İçerik başarıyla güncellendi!';
+        }
     } 
-
-    
     elseif (isset($_POST['update_logo'])) {
         // Logo güncelleme
         $image_url = handle_file_upload($_FILES, 'site_logo');
@@ -396,7 +429,7 @@ $products = get_products($pdo);
                     <!-- Genel Ayarlar -->
                     <div class="admin-card">
                         <h2 class="section-title">Genel Site Ayarları</h2>
-                        <form method="POST">
+                        <form method="POST" enctype="multipart/form-data">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="form-group">
                                     <label class="form-label" for="site_title">Site Başlığı</label>
@@ -425,105 +458,105 @@ $products = get_products($pdo);
                     </div>
                 
                 <?php elseif ($current_section == 'logo'): ?>
-<div class="admin-card">
-    <h2 class="section-title">Logo Yönetimi</h2>
-    <form method="POST" enctype="multipart/form-data" id="logoForm">
-        <div class="form-group">
-            <label class="form-label" for="site_logo">Site Logosu</label>
-            
-            <?php if (!empty($content['site_logo'])): ?>
-                <div class="mb-4">
-                    <p class="form-label">Mevcut Logo:</p>
-                    <img src="<?= htmlspecialchars($content['site_logo']) ?>" 
-                         alt="Site Logo" 
-                         class="logo-preview"
-                         id="currentLogo">
-                </div>
-            <?php endif; ?>
-            
-            <input class="form-control" 
-                   type="file" 
-                   id="site_logo" 
-                   name="site_logo"
-                   accept="image/*"
-                   onchange="previewLogo(event)">
-            <p class="text-sm text-gray-500 mt-2">PNG, JPG veya SVG formatında logo yükleyin (Max 2MB)</p>
-            
-            <!-- Yeni logo önizleme -->
-            <div id="newLogoPreview" class="mt-4 hidden">
-                <p class="form-label">Yeni Logo Önizleme:</p>
-                <img id="previewImage" class="logo-preview">
-            </div>
-        </div>
-        
-        <div class="mt-6 flex items-center">
-            <button type="submit" name="update_logo" class="btn btn-primary mr-3">
-                Logoyu Güncelle
-            </button>
-            <div id="uploadStatus" class="text-sm text-gray-600 hidden">
-                <i class="fas fa-spinner fa-spin mr-2"></i> Yükleniyor...
-            </div>
-        </div>
-    </form>
-</div>
-                
+                    <!-- Logo Yönetimi -->
+                    <div class="admin-card">
+                        <h2 class="section-title">Logo Yönetimi</h2>
+                        <form method="POST" enctype="multipart/form-data" id="logoForm">
+                            <div class="form-group">
+                                <label class="form-label" for="site_logo">Site Logosu</label>
+                                
+                                <?php if (!empty($content['site_logo'])): ?>
+                                    <div class="mb-4">
+                                        <p class="form-label">Mevcut Logo:</p>
+                                        <img src="<?= htmlspecialchars($content['site_logo']) ?>" 
+                                             alt="Site Logo" 
+                                             class="logo-preview"
+                                             id="currentLogo">
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <input class="form-control" 
+                                       type="file" 
+                                       id="site_logo" 
+                                       name="site_logo"
+                                       accept="image/*"
+                                       onchange="previewLogo(event)">
+                                <p class="text-sm text-gray-500 mt-2">PNG, JPG veya SVG formatında logo yükleyin (Max 2MB)</p>
+                                
+                                <!-- Yeni logo önizleme -->
+                                <div id="newLogoPreview" class="mt-4 hidden">
+                                    <p class="form-label">Yeni Logo Önizleme:</p>
+                                    <img id="previewImage" class="logo-preview">
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 flex items-center">
+                                <button type="submit" name="update_logo" class="btn btn-primary mr-3">
+                                    Logoyu Güncelle
+                                </button>
+                                <div id="uploadStatus" class="text-sm text-gray-600 hidden">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i> Yükleniyor...
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
                 <?php elseif ($current_section == 'hero'): ?>
                     <!-- Hero Bölümü -->
                     <div class="admin-card">
-    <h2 class="section-title">Hero Bölümü Yönetimi</h2>
-    <form method="POST" enctype="multipart/form-data" id="heroForm">
-        <div class="form-group">
-            <label class="form-label" for="hero_title">Başlık</label>
-            <input class="form-control" 
-                   type="text" id="hero_title" name="content_hero_title" 
-                   value="<?= htmlspecialchars($content['hero_title'] ?? 'MAJESTİK ZARAFET') ?>" required>
-        </div>
-        
-        <div class="form-group">
-            <label class="form-label" for="hero_subtitle">Alt Başlık</label>
-            <textarea class="form-control" 
-                      id="hero_subtitle" name="content_hero_subtitle" rows="2"><?= htmlspecialchars($content['hero_subtitle'] ?? 'Lüks ve Zarafetin Senfonisi - Seçkin Zevklere Özel İnce İşçilik') ?></textarea>
-        </div>
-        
-        <div class="form-group">
-            <label class="form-label" for="hero_image">Arkaplan Görseli</label>
-            
-            <?php if (!empty($content['hero_image'])): ?>
-                <div class="mb-4">
-                    <p class="form-label">Mevcut Görsel:</p>
-                    <img src="<?= htmlspecialchars($content['hero_image']) ?>" 
-                         alt="Hero Background" 
-                         class="w-full h-64 object-cover rounded-lg mb-4"
-                         id="currentHeroImage">
-                </div>
-            <?php endif; ?>
-            
-            <input class="form-control" 
-                   type="file" 
-                   id="hero_image" 
-                   name="hero_image"
-                   accept="image/*"
-                   onchange="previewHeroImage(event)">
-            
-            <!-- Yeni görsel önizleme -->
-            <div id="newHeroPreview" class="mt-4 hidden">
-                <p class="form-label">Yeni Görsel Önizleme:</p>
-                <img id="heroPreviewImage" class="w-full h-64 object-cover rounded-lg">
-            </div>
-        </div>
-        
-        <div class="mt-6 flex items-center">
-            <button type="submit" name="update_hero" class="btn btn-primary mr-3">
-                Kaydet
-            </button>
-            <div id="heroUploadStatus" class="text-sm text-gray-600 hidden">
-                <i class="fas fa-spinner fa-spin mr-2"></i> Yükleniyor...
-            </div>
-        </div>
-    </form>
-</div>
+                        <h2 class="section-title">Hero Bölümü Yönetimi</h2>
+                        <form method="POST" enctype="multipart/form-data" id="heroForm">
+                            <div class="form-group">
+                                <label class="form-label" for="hero_title">Başlık</label>
+                                <input class="form-control" 
+                                       type="text" id="hero_title" name="content_hero_title" 
+                                       value="<?= htmlspecialchars($content['hero_title'] ?? 'MAJESTİK ZARAFET') ?>" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="hero_subtitle">Alt Başlık</label>
+                                <textarea class="form-control" 
+                                          id="hero_subtitle" name="content_hero_subtitle" rows="2"><?= htmlspecialchars($content['hero_subtitle'] ?? 'Lüks ve Zarafetin Senfonisi - Seçkin Zevklere Özel İnce İşçilik') ?></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="hero_image">Arkaplan Görseli</label>
+                                
+                                <?php if (!empty($content['hero_image'])): ?>
+                                    <div class="mb-4">
+                                        <p class="form-label">Mevcut Görsel:</p>
+                                        <img src="<?= htmlspecialchars($content['hero_image']) ?>" 
+                                             alt="Hero Background" 
+                                             class="w-full h-64 object-cover rounded-lg mb-4"
+                                             id="currentHeroImage">
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <input class="form-control" 
+                                       type="file" 
+                                       id="hero_image" 
+                                       name="hero_image"
+                                       accept="image/*"
+                                       onchange="previewHeroImage(event)">
+                                
+                                <!-- Yeni görsel önizleme -->
+                                <div id="newHeroPreview" class="mt-4 hidden">
+                                    <p class="form-label">Yeni Görsel Önizleme:</p>
+                                    <img id="heroPreviewImage" class="w-full h-64 object-cover rounded-lg">
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 flex items-center">
+                                <button type="submit" name="update_hero" class="btn btn-primary mr-3">
+                                    Kaydet
+                                </button>
+                                <div id="heroUploadStatus" class="text-sm text-gray-600 hidden">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i> Yükleniyor...
+                                </div>
+                            </div>
+                        </form>
+                    </div>
 
-                
                 <?php elseif ($current_section == 'about'): ?>
                     <!-- Hakkımızda Düzenleme Formu -->
                     <div class="admin-card">
@@ -542,8 +575,8 @@ $products = get_products($pdo);
                                     </div>
                                 <?php endif; ?>
                                 <input class="form-control" 
-                                       type="file" id="about_image" name="image">
-                                <input type="hidden" name="content_about_image" value="<?= htmlspecialchars($content['about_image'] ?? '') ?>">
+                                       type="file" id="about_image" name="about_image" accept="image/*">
+                                <p class="text-sm text-gray-500 mt-2">PNG, JPG, GIF veya WEBP formatında görsel yükleyin</p>
                             </div>
                             <div class="mt-6">
                                 <button type="submit" name="update_content" class="btn btn-primary">
@@ -597,8 +630,8 @@ $products = get_products($pdo);
                                         </div>
                                     <?php endif; ?>
                                     <input class="form-control" 
-                                           type="file" id="featured_image" name="image">
-                                    <input type="hidden" name="content_featured_image" value="<?= htmlspecialchars($content['featured_image'] ?? '') ?>">
+                                           type="file" id="featured_image" name="featured_image" accept="image/*">
+                                    <p class="text-sm text-gray-500 mt-2">PNG, JPG, GIF veya WEBP formatında görsel yükleyin</p>
                                 </div>
                             </div>
                             <div class="mt-6">
@@ -789,9 +822,10 @@ $products = get_products($pdo);
             </div>
         </div>
     </div>
-<script>
-// Hero görsel önizleme
-function previewHeroImage(event) {
+
+    <script>
+        // Hero görsel önizleme
+        function previewHeroImage(event) {
     const input = event.target;
     const previewContainer = document.getElementById('newHeroPreview');
     const previewImage = document.getElementById('heroPreviewImage');
@@ -805,52 +839,33 @@ function previewHeroImage(event) {
             
             // Mevcut görseli gizle
             const currentImage = document.getElementById('currentHeroImage');
-            if (currentImage) currentImage.classList.add('hidden');
+            if (currentImage) {
+                currentImage.style.opacity = '0.3';
+            }
         }
         
         reader.readAsDataURL(input.files[0]);
     }
 }
+    function previewImage(input, previewId) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById(previewId);
+            if (preview) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                preview.style.maxWidth = '200px';
+                preview.style.margin = '10px 0';
+                preview.style.border = '2px solid #d4af37';
+                preview.style.borderRadius = '4px';
+            }
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
 
-// AJAX ile form gönderimi
-document.getElementById('heroForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const form = this;
-    const status = document.getElementById('heroUploadStatus');
-    const submitBtn = form.querySelector('button[type="submit"]');
-    
-    submitBtn.disabled = true;
-    status.classList.remove('hidden');
-    
-    const formData = new FormData(form);
-    formData.append('update_hero', '1'); // İşlem tipini belirt
-    
-    fetch('', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.text())
-    .then(data => {
-        setTimeout(() => {
-            window.location.reload();
-        }, 1500);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        status.innerHTML = '<i class="fas fa-exclamation-circle text-red-500 mr-2"></i> Hata oluştu!';
-        setTimeout(() => {
-            status.classList.add('hidden');
-            submitBtn.disabled = false;
-        }, 3000);
-    });
-});
-</script>
-    <script>
-        // Ürün ekleme butonu
-        document.getElementById('addProductBtn')?.addEventListener('click', function() {
-            window.location.href = '?section=products&add_product=1';
-        });
+        // Logo önizleme
         function previewLogo(event) {
     const input = event.target;
     const previewContainer = document.getElementById('newLogoPreview');
@@ -862,48 +877,97 @@ document.getElementById('heroForm').addEventListener('submit', function(e) {
         reader.onload = function(e) {
             previewImage.src = e.target.result;
             previewContainer.classList.remove('hidden');
+            
+            // Mevcut logoyu gizle
+            const currentLogo = document.getElementById('currentLogo');
+            if (currentLogo) {
+                currentLogo.style.opacity = '0.3';
+            }
         }
         
         reader.readAsDataURL(input.files[0]);
     } else {
         previewContainer.classList.add('hidden');
+        const currentLogo = document.getElementById('currentLogo');
+        if (currentLogo) {
+            currentLogo.style.opacity = '1';
+        }
     }
 }
 
-// AJAX ile form gönderimi
-document.getElementById('logoForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const form = this;
-    const status = document.getElementById('uploadStatus');
-    const submitBtn = form.querySelector('button[type="submit"]');
-    
-    // Butonu devre dışı bırak ve yükleme göstergesini aç
-    submitBtn.disabled = true;
-    status.classList.remove('hidden');
-    
-    const formData = new FormData(form);
-    
-    fetch('', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.text())
-    .then(data => {
-        // Sayfayı yenile
-        setTimeout(() => {
-            window.location.reload();
-        }, 1500);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        status.innerHTML = '<i class="fas fa-exclamation-circle text-red-500 mr-2"></i> Hata oluştu!';
-        setTimeout(() => {
-            status.classList.add('hidden');
-            submitBtn.disabled = false;
-        }, 3000);
-    });
-});
+        // AJAX ile logo form gönderimi
+        document.getElementById('logoForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const form = this;
+            const status = document.getElementById('uploadStatus');
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            // Butonu devre dışı bırak ve yükleme göstergesini aç
+            submitBtn.disabled = true;
+            status.classList.remove('hidden');
+            
+            const formData = new FormData(form);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                // Sayfayı yenile
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                status.innerHTML = '<i class="fas fa-exclamation-circle text-red-500 mr-2"></i> Hata oluştu!';
+                setTimeout(() => {
+                    status.classList.add('hidden');
+                    submitBtn.disabled = false;
+                }, 3000);
+            });
+        });
+
+        // AJAX ile hero form gönderimi
+        document.getElementById('heroForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const form = this;
+            const status = document.getElementById('heroUploadStatus');
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            submitBtn.disabled = true;
+            status.classList.remove('hidden');
+            
+            const formData = new FormData(form);
+            formData.append('update_hero', '1'); // İşlem tipini belirt
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                status.innerHTML = '<i class="fas fa-exclamation-circle text-red-500 mr-2"></i> Hata oluştu!';
+                setTimeout(() => {
+                    status.classList.add('hidden');
+                    submitBtn.disabled = false;
+                }, 3000);
+            });
+        });
+
+        // Ürün ekleme butonu
+        document.getElementById('addProductBtn')?.addEventListener('click', function() {
+            window.location.href = '?section=products&add_product=1';
+        });
     </script>
 </body>
 </html>
